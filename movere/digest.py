@@ -26,8 +26,8 @@ def _build_coaching_prompt(fitness: dict, calendar_data: dict, screen: dict, yes
 
     parts.append(f"**Fitness (yesterday):** steps={fitness.get('steps')}, "
                  f"sleep={fitness.get('sleep_hours')}h, sleep score={fitness.get('sleep_score')}, "
-                 f"HRV={fitness.get('hrv')}, body battery={fitness.get('body_battery')}, "
-                 f"activity={fitness.get('activity') or 'none logged'}")
+                 f"avg stress={fitness.get('stress')}, resting HR={fitness.get('resting_hr')} bpm, "
+                 f"VO2 max={fitness.get('vo2_max')}, activity={fitness.get('activity') or 'none logged'}")
 
     if not screen.get("error") and screen.get("phone_minutes") is not None:
         goal = screen["goal_minutes"]

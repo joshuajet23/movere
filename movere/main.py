@@ -24,7 +24,8 @@ def _print_summary(today: str, coaching_note: str, fitness: dict, calendar_data:
 
     print("\n[ Fitness ]")
     for key, label in [("steps", "Steps"), ("sleep_hours", "Sleep (hrs)"),
-                       ("hrv", "HRV"), ("body_battery", "Body Battery"), ("activity", "Activity")]:
+                       ("sleep_score", "Sleep Score"), ("stress", "Avg Stress"),
+                       ("resting_hr", "Resting HR"), ("vo2_max", "VO2 Max"), ("activity", "Activity")]:
         val = fitness.get(key)
         if val is not None:
             print(f"  {label}: {val}")

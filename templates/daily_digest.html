@@ -69,12 +69,16 @@
           <div class="label">Sleep Score</div>
         </div>
         <div class="metric">
-          <div class="value">{{ fitness.hrv | default('—') }}</div>
-          <div class="label">HRV</div>
+          <div class="value">{{ fitness.stress | default('—') }}</div>
+          <div class="label">Avg Stress</div>
         </div>
         <div class="metric">
-          <div class="value">{{ fitness.body_battery | default('—') }}</div>
-          <div class="label">Body Battery</div>
+          <div class="value">{{ fitness.resting_hr | default('—') }}</div>
+          <div class="label">Resting HR</div>
+        </div>
+        <div class="metric">
+          <div class="value">{{ fitness.vo2_max | default('—') }}</div>
+          <div class="label">VO2 Max</div>
         </div>
       </div>
       {% if fitness.activity %}

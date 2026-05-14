@@ -8,8 +8,10 @@ def fitness() -> dict:
         "date": (date.today() - timedelta(days=1)).isoformat(),
         "steps": 9_842,
         "sleep_hours": 7.2,
-        "hrv": 48,
-        "body_battery": 74,
+        "sleep_score": 78,
+        "stress": 28,
+        "resting_hr": 52,
+        "vo2_max": 54.0,
         "activity": "Running (5.3 km)",
     }
 
