@@ -4,7 +4,7 @@ import argparse
 from datetime import date
 from pathlib import Path
 
-from . import config, digest, email_sender, garmin, screentime, chat
+from . import config, digest, email_sender, garmin, screentime, chat, server as web_server
 from . import projects as proj_store
 from . import logger
 from .calendar import fetch as fetch_calendar
@@ -202,6 +202,10 @@ def main() -> None:
     p_chat = sub.add_parser("chat", help="Talk to Movere in plain English")
     p_chat.add_argument("message", help="What you want to say or do")
 
+    # movere server
+    p_server = sub.add_parser("server", help="Start the local chat web interface")
+    p_server.add_argument("--port", type=int, default=web_server.PORT, help="Port to listen on")
+
     # movere (default — run digest)
     parser.add_argument("--dry-run", action="store_true",
                         help="Print to terminal and save HTML preview; skip email.")
@@ -218,6 +222,8 @@ def main() -> None:
         cmd_status(args)
     elif args.cmd == "chat":
         chat.run(args.message, config.load())
+    elif args.cmd == "server":
+        web_server.run(port=args.port)
     else:
         if args.mock:
             args.dry_run = True

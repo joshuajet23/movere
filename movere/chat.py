@@ -125,22 +125,22 @@ def _execute_tool(name: str, inputs: dict) -> str:
     return f"Unknown tool: {name}"
 
 
-def run(message: str, cfg: dict) -> None:
+def process(message: str, cfg: dict, history: list[dict] | None = None) -> str:
+    """Process a message and return Claude's reply. history is a list of prior {role, content} turns."""
     client = anthropic.Anthropic(api_key=cfg["anthropic"]["api_key"])
     projects = proj_store.all_active()
+
+    messages = list(history or []) + [{"role": "user", "content": message}]
 
     response = client.messages.create(
         model=cfg["anthropic"]["model"],
         max_tokens=512,
         system=_system_prompt(projects),
         tools=_TOOLS,
-        messages=[{"role": "user", "content": message}],
+        messages=messages,
     )
 
-    # Execute any tool calls, then get Claude's final reply
-    messages = [{"role": "user", "content": message}]
     tool_results = []
-
     for block in response.content:
         if block.type == "tool_use":
             result = _execute_tool(block.name, block.input)
@@ -161,8 +161,11 @@ def run(message: str, cfg: dict) -> None:
             tools=_TOOLS,
             messages=messages,
         )
-        reply = next((b.text for b in followup.content if hasattr(b, "text")), "Done.")
-    else:
-        reply = next((b.text for b in response.content if hasattr(b, "text")), "Done.")
+        return next((b.text for b in followup.content if hasattr(b, "text")), "Done.")
 
+    return next((b.text for b in response.content if hasattr(b, "text")), "Done.")
+
+
+def run(message: str, cfg: dict) -> None:
+    reply = process(message, cfg)
     print(f"\nMovere: {reply}\n")
