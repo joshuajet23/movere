@@ -56,20 +56,21 @@ def _build_coaching_prompt(fitness: dict, calendar_data: dict, screen: dict, yes
         if missed:
             parts.append(f"  - Not logged (missed?): {', '.join(missed)}")
 
-    career_events = calendar_data["career"]["events"]
-    mentoring_events = calendar_data["mentoring"]["events"]
-
-    if career_events:
-        titles = ", ".join(e["title"] for e in career_events[:3])
-        parts.append(f"**Career (upcoming):** {titles}")
+    today_events = calendar_data.get("today", [])
+    if today_events:
+        titles = ", ".join(e["title"] for e in today_events[:5])
+        parts.append(f"**Today's schedule:** {titles}")
     else:
-        parts.append("**Career:** No upcoming career events.")
+        parts.append("**Today's schedule:** Nothing on the calendar today.")
 
-    if mentoring_events:
-        titles = ", ".join(e["title"] for e in mentoring_events[:3])
-        parts.append(f"**Mentoring (upcoming):** {titles}")
-    else:
-        parts.append("**Mentoring:** No upcoming mentoring sessions.")
+    for key, label in [("career", "Career"), ("mentoring", "Mentoring"),
+                       ("fitness", "Fitness events"), ("project", "Blocked project time")]:
+        events = calendar_data.get(key, {}).get("events", [])
+        if events:
+            titles = ", ".join(e["title"] for e in events[:3])
+            parts.append(f"**{label} (upcoming):** {titles}")
+        elif key in ("career", "mentoring"):
+            parts.append(f"**{label}:** No upcoming events.")
 
     if week_stats and week_stats.get("hit_rate"):
         hr = week_stats["hit_rate"]
@@ -108,8 +109,12 @@ def render_html(date_str: str, coaching_note: str, fitness: dict, calendar_data:
         fitness=fitness,
         screen=screen,
         yesterday_log=yesterday_log,
+        today_events=calendar_data.get("today", []),
         career=calendar_data["career"],
         mentoring=calendar_data["mentoring"],
+        fitness_events=calendar_data.get("fitness", {"events": []}),
+        project_events=calendar_data.get("project", {"events": []}),
+        general_events=calendar_data.get("general", {"events": []}),
         lookahead_days=lookahead_days,
         week_stats=week_stats,
     )

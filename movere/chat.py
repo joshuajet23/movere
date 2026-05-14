@@ -6,6 +6,7 @@ import anthropic
 from . import projects as proj_store
 from . import logger
 from . import context as ctx
+from .calendar import create_event as cal_create_event
 
 
 _TOOLS = [
@@ -62,6 +63,21 @@ _TOOLS = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "create_calendar_event",
+        "description": "Create a new event on the user's Google Calendar.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Event title"},
+                "date": {"type": "string", "description": "Date in YYYY-MM-DD format"},
+                "time": {"type": "string", "description": "Start time in HH:MM 24h format. Omit for all-day events."},
+                "duration_minutes": {"type": "integer", "description": "Duration in minutes (default 60)"},
+                "description": {"type": "string", "description": "Optional event description"},
+            },
+            "required": ["title", "date"],
+        },
+    },
+    {
         "name": "save_context",
         "description": "Save a note about the user's life context so tomorrow's coaching digest is aware of it. Use this when the user shares something meaningful that will affect tomorrow — a late night, a big event, a stressful situation, a milestone. Do not use it for routine logging.",
         "input_schema": {
@@ -92,12 +108,13 @@ How to respond:
 - When someone shares life context — a big night out, a stressful week, a job starting Monday, a rough day — acknowledge it genuinely first. That comes before anything else.
 - Adapt your expectations to what they've told you. If they mention they'll have poor sleep tomorrow, don't push hard on goals for that day. If something big is coming, name it.
 - Ask a follow-up when it would move the conversation forward — but only one, and only if it's natural.
-- Use tools when there's a clear action to take (logging progress, updating a goal, adding a project). Don't reach for a tool when the right response is just to be present.
+- Use tools when there's a clear action to take (logging progress, updating a goal, adding a project, scheduling a calendar event). Don't reach for a tool when the right response is just to be present.
+- If the user wants to block time or schedule something, use create_calendar_event. Always confirm the date and time before creating — infer from context if obvious (e.g. "tomorrow" → tomorrow's date), but ask if ambiguous.
 - After a tool call, weave the confirmation into a natural sentence — don't announce it like a system message.
 - Be warm, direct, and human. No bullet points. Responses should feel like a short message from someone who actually knows you, not a chatbot output. 2-4 sentences is usually right."""
 
 
-def _execute_tool(name: str, inputs: dict) -> str:
+def _execute_tool(name: str, inputs: dict, cfg: dict = {}) -> str:
     if name == "add_project":
         try:
             p = proj_store.add(inputs["name"], goal=inputs.get("goal"))
@@ -134,6 +151,21 @@ def _execute_tool(name: str, inputs: dict) -> str:
             return "No active projects yet."
         return "\n".join(f"- {p['name']} (goal: {p.get('goal') or 'none'})" for p in projects)
 
+    elif name == "create_calendar_event":
+        try:
+            result = cal_create_event(
+                cfg,
+                title=inputs["title"],
+                event_date=inputs["date"],
+                time=inputs.get("time"),
+                duration_minutes=inputs.get("duration_minutes", 60),
+                description=inputs.get("description", ""),
+            )
+            time_str = f" at {result['time']}" if result.get("time") else " (all day)"
+            return f"Created: {result['title']} on {result['date']}{time_str}"
+        except Exception as e:
+            return f"Error creating event: {e}"
+
     elif name == "save_context":
         ctx.save(inputs["note"])
         return f"Saved: {inputs['note']}"
@@ -159,7 +191,7 @@ def process(message: str, cfg: dict, history: list[dict] | None = None) -> str:
     tool_results = []
     for block in response.content:
         if block.type == "tool_use":
-            result = _execute_tool(block.name, block.input)
+            result = _execute_tool(block.name, block.input, cfg)
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,

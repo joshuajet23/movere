@@ -73,6 +73,9 @@ def calendar() -> dict:
     in_three = (date.today() + timedelta(days=3)).strftime("%a %b %-d, %-I:%M %p")
     in_five = (date.today() + timedelta(days=5)).strftime("%a %b %-d (all day)")
     return {
+        "today": [
+            {"title": "Team standup", "datetime": "Today, 9:00 AM", "all_day": False},
+        ],
         "career": {
             "events": [
                 {"title": "Phone screen — Acme Corp", "datetime": tomorrow},
@@ -84,4 +87,7 @@ def calendar() -> dict:
                 {"title": "Mentoring session — weekly check-in", "datetime": in_five},
             ]
         },
+        "fitness": {"events": []},
+        "project": {"events": []},
+        "general": {"events": []},
     }

@@ -174,10 +174,25 @@
     </div>
     {% endif %}
 
-    <!-- Career Applications -->
+    <!-- Today's Schedule -->
+    {% if today_events %}
     <div class="section">
-      <h2>Career Applications <span class="tag tag-career">Tracking</span></h2>
-      {% if career.events %}
+      <h2>Today <span class="tag tag-career">On your calendar</span></h2>
+      <ul class="event-list">
+        {% for event in today_events %}
+        <li>
+          {{ event.title }}
+          <span class="event-time">{{ event.datetime }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Career Applications -->
+    {% if career.events %}
+    <div class="section">
+      <h2>Career Applications <span class="tag tag-career">Upcoming</span></h2>
       <ul class="event-list">
         {% for event in career.events %}
         <li>
@@ -186,15 +201,13 @@
         </li>
         {% endfor %}
       </ul>
-      {% else %}
-      <p style="font-size:13px; color:#aaa; font-style:italic;">No upcoming career events in the next {{ lookahead_days }} days.</p>
-      {% endif %}
     </div>
+    {% endif %}
 
     <!-- Mentoring -->
+    {% if mentoring.events %}
     <div class="section">
-      <h2>Mentoring <span class="tag tag-mentoring">Calendar</span></h2>
-      {% if mentoring.events %}
+      <h2>Mentoring <span class="tag tag-mentoring">Upcoming</span></h2>
       <ul class="event-list">
         {% for event in mentoring.events %}
         <li>
@@ -203,10 +216,53 @@
         </li>
         {% endfor %}
       </ul>
-      {% else %}
-      <p style="font-size:13px; color:#aaa; font-style:italic;">No upcoming mentoring sessions in the next {{ lookahead_days }} days.</p>
-      {% endif %}
     </div>
+    {% endif %}
+
+    <!-- Fitness Events -->
+    {% if fitness_events.events %}
+    <div class="section">
+      <h2>Fitness <span class="tag tag-fitness">Upcoming</span></h2>
+      <ul class="event-list">
+        {% for event in fitness_events.events %}
+        <li>
+          {{ event.title }}
+          <span class="event-time">{{ event.datetime }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Project Blocks -->
+    {% if project_events.events %}
+    <div class="section">
+      <h2>Focus Blocks <span class="tag tag-screen">Upcoming</span></h2>
+      <ul class="event-list">
+        {% for event in project_events.events %}
+        <li>
+          {{ event.title }}
+          <span class="event-time">{{ event.datetime }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- General -->
+    {% if general_events.events %}
+    <div class="section">
+      <h2>Other Upcoming <span class="tag tag-mentoring">Calendar</span></h2>
+      <ul class="event-list">
+        {% for event in general_events.events[:5] %}
+        <li>
+          {{ event.title }}
+          <span class="event-time">{{ event.datetime }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
   </div>
 
