@@ -16,6 +16,7 @@ data/*.json
 data/*.csv
 data/*.html
 data/*.log
+data/garmin_tokens/
 
 # Keep example configs
 !config/settings.example.toml

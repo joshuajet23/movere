@@ -25,8 +25,13 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
         return json.loads(cache_path.read_text())
 
     try:
-        client = Garmin(cfg["garmin"]["email"], cfg["garmin"]["password"])
-        client.login()
+        token_dir = str(config.data_dir() / "garmin_tokens")
+        try:
+            client = Garmin()
+            client.login(tokenstore=token_dir)
+        except Exception:
+            client = Garmin(cfg["garmin"]["email"], cfg["garmin"]["password"])
+            client.login(tokenstore=token_dir)
 
         date_str = yesterday.isoformat()
 

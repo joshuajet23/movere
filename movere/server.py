@@ -4,13 +4,14 @@ from flask import Flask, request, jsonify
 
 from . import config
 from .chat import process
+from . import logger
 
 PORT = 7842
 
 app = Flask(__name__)
 _cfg: dict = {}
 
-_PAGE = """<!DOCTYPE html>
+_CHAT_PAGE = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -32,11 +33,22 @@ _PAGE = """<!DOCTYPE html>
       padding: 18px 28px;
       display: flex;
       align-items: baseline;
-      gap: 12px;
+      gap: 16px;
       flex-shrink: 0;
     }
     header h1 { font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; }
-    header span { font-size: 13px; opacity: 0.5; font-style: italic; }
+    header span { font-size: 13px; opacity: 0.5; font-style: italic; flex: 1; }
+    header a {
+      font-size: 12px;
+      color: #f9f7f4;
+      opacity: 0.55;
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(249,247,244,0.3);
+      padding-bottom: 1px;
+    }
+    header a:hover { opacity: 1; }
     #log {
       flex: 1;
       overflow-y: auto;
@@ -104,27 +116,41 @@ _PAGE = """<!DOCTYPE html>
       letter-spacing: 0.04em;
     }
     button:disabled { opacity: 0.4; cursor: default; }
+    #clear-btn {
+      background: none;
+      color: rgba(249,247,244,0.45);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0;
+      border-radius: 0;
+      cursor: pointer;
+    }
+    #clear-btn:hover { color: #f9f7f4; }
   </style>
 </head>
 <body>
   <header>
     <h1>Movere</h1>
     <span>your personal project OS</span>
+    <button id="clear-btn">Clear</button>
+    <a href="/history">History &rarr;</a>
   </header>
-  <div id="log">
-    <div class="bubble assistant">Hey — what's on your mind? You can log progress, update a goal, add a project, or just tell me what you did today.</div>
-  </div>
+  <div id="log"></div>
   <form id="form">
     <textarea id="input" placeholder="e.g. change my Rhodes essay goal to 1 hour a day" rows="1"></textarea>
     <button type="submit" id="btn">Send</button>
   </form>
   <script>
+    const STORAGE_KEY = 'movere_history';
     const log = document.getElementById('log');
     const input = document.getElementById('input');
     const btn = document.getElementById('btn');
-    const history = [];
 
-    function addBubble(role, text) {
+    // history sent to the API (role/content pairs)
+    let history = [];
+
+    function addBubble(role, text, save = true) {
       const div = document.createElement('div');
       div.className = 'bubble ' + role;
       div.textContent = text;
@@ -132,6 +158,31 @@ _PAGE = """<!DOCTYPE html>
       log.scrollTop = log.scrollHeight;
       return div;
     }
+
+    function saveToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    }
+
+    function loadFromStorage() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (saved.length) {
+          history = saved;
+          for (const turn of history) {
+            addBubble(turn.role, turn.content, false);
+          }
+          return;
+        }
+      } catch {}
+      addBubble('assistant', "Hey — what\\'s on your mind? You can log progress, update a goal, add a project, or just tell me what you did today.", false);
+    }
+
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      history = [];
+      localStorage.removeItem(STORAGE_KEY);
+      log.innerHTML = '';
+      addBubble('assistant', "Fresh start. What\\'s on your mind?", false);
+    });
 
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -148,8 +199,8 @@ _PAGE = """<!DOCTYPE html>
       input.value = '';
       btn.disabled = true;
 
-      addBubble('user', text);
-      const thinking = addBubble('thinking', 'Thinking…');
+      addBubble('user', text, false);
+      const thinking = addBubble('thinking', 'Thinking…', false);
 
       try {
         const res = await fetch('/chat', {
@@ -159,35 +210,139 @@ _PAGE = """<!DOCTYPE html>
         });
         const data = await res.json();
         thinking.remove();
-        addBubble('assistant', data.reply);
+        addBubble('assistant', data.reply, false);
         history.push({ role: 'user', content: text });
         history.push({ role: 'assistant', content: data.reply });
+        saveToStorage();
       } catch {
         thinking.remove();
-        addBubble('assistant', 'Something went wrong — check the Movere server logs.');
+        addBubble('assistant', 'Something went wrong — check the Movere server logs.', false);
       }
 
       btn.disabled = false;
       input.focus();
     }
+
+    loadFromStorage();
   </script>
+</body>
+</html>"""
+
+_HISTORY_PAGE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movere — History</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; background: #f9f7f4; color: #1a1a1a; }
+    header {
+      background: #1a1a1a;
+      color: #f9f7f4;
+      padding: 18px 28px;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    header h1 { font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; }
+    header span { font-size: 13px; opacity: 0.5; font-style: italic; flex: 1; }
+    header a {
+      font-size: 12px;
+      color: #f9f7f4;
+      opacity: 0.55;
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(249,247,244,0.3);
+      padding-bottom: 1px;
+    }
+    header a:hover { opacity: 1; }
+    .container { max-width: 680px; margin: 36px auto; padding: 0 24px 60px; }
+    .day { margin-bottom: 32px; }
+    .day-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e8e4de;
+    }
+    .day-name { font-size: 15px; font-weight: bold; }
+    .day-date { font-size: 12px; color: #aaa; }
+    .entry {
+      display: flex;
+      gap: 10px;
+      padding: 7px 0;
+      font-size: 14px;
+      line-height: 1.5;
+      border-bottom: 1px solid #f0ece4;
+    }
+    .entry:last-child { border-bottom: none; }
+    .entry-project {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #888;
+      min-width: 100px;
+      padding-top: 2px;
+    }
+    .entry-note { color: #1a1a1a; }
+    .empty { font-size: 13px; color: #ccc; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Movere</h1>
+    <span>history</span>
+    <a href="/">&larr; Chat</a>
+  </header>
+  <div class="container">
+    {% for day in history %}
+    <div class="day">
+      <div class="day-header">
+        <span class="day-name">{{ day.day }}</span>
+        <span class="day-date">{{ day.date }}</span>
+      </div>
+      {% if day.entries %}
+        {% for entry in day.entries %}
+        <div class="entry">
+          <span class="entry-project">{{ (entry.project or 'general') | replace('-', ' ') }}</span>
+          <span class="entry-note">{{ entry.note }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">Nothing logged</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
 </body>
 </html>"""
 
 
 @app.get("/")
 def index():
-    return _PAGE, 200, {"Content-Type": "text/html"}
+    return _CHAT_PAGE, 200, {"Content-Type": "text/html"}
+
+
+@app.get("/history")
+def history():
+    from jinja2 import Environment
+    days = logger.week_history(days=14)
+    env = Environment()
+    html = env.from_string(_HISTORY_PAGE).render(history=days)
+    return html, 200, {"Content-Type": "text/html"}
 
 
 @app.post("/chat")
 def chat():
     body = request.get_json(force=True)
     message = (body.get("message") or "").strip()
-    history = body.get("history") or []
+    hist = body.get("history") or []
     if not message:
         return jsonify({"reply": ""}), 400
-    reply = process(message, _cfg, history=history)
+    reply = process(message, _cfg, history=hist)
     return jsonify({"reply": reply})
 
 

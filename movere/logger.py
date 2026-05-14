@@ -67,6 +67,26 @@ def status_today() -> dict:
     }
 
 
+def week_history(days: int = 7) -> list[dict]:
+    """Return a list of daily summaries for the past N days, most recent first."""
+    today = date.today()
+    history = []
+    for i in range(days):
+        d = today - timedelta(days=i)
+        entries = get_entries(d)
+        by_project: dict[str, list[str]] = {}
+        for e in entries:
+            pid = e.get("project") or "general"
+            by_project.setdefault(pid, []).append(e["note"])
+        history.append({
+            "date": d.isoformat(),
+            "day": d.strftime("%A"),
+            "entries": entries,
+            "by_project": by_project,
+        })
+    return history
+
+
 def yesterday_summary() -> dict:
     yesterday = date.today() - timedelta(days=1)
     entries = get_entries(yesterday)

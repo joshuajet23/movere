@@ -7,8 +7,14 @@ from . import config
 
 
 def _build_coaching_prompt(fitness: dict, calendar_data: dict, screen: dict, yesterday_log: dict) -> str:
+    from datetime import date as _date
+    today = _date.today()
+    tomorrow = today + __import__("datetime").timedelta(days=1)
+    day_context = f"Today is {today.strftime('%A, %B %-d')}. Tomorrow is {tomorrow.strftime('%A')}."
+
     parts = ["You are a warm, direct personal coach. Write a single short paragraph (3-5 sentences) as a coaching note."]
     parts.append("Be specific — reference the actual data below. Avoid generic platitudes.")
+    parts.append(f"\n## Context\n{day_context}")
     parts.append("\n## Data for today\n")
 
     parts.append(f"**Fitness (yesterday):** steps={fitness.get('steps')}, "
