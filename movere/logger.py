@@ -67,6 +67,50 @@ def status_today() -> dict:
     }
 
 
+def week_stats(days: int = 7) -> dict:
+    """Compute project hit rate and log volume for the past N days."""
+    today = date.today()
+    projects = proj_store.all_active()
+    total_days = 0
+    hit_counts: dict[str, int] = {p["id"]: 0 for p in projects}
+
+    for i in range(1, days + 1):  # exclude today (incomplete)
+        d = today - timedelta(days=i)
+        entries = get_entries(d)
+        if not entries and i == 1:
+            continue  # skip yesterday if empty (data may not be in yet)
+        total_days += 1
+        logged_ids = {e["project"] for e in entries if e.get("project")}
+        for pid in hit_counts:
+            if pid in logged_ids:
+                hit_counts[pid] += 1
+
+    hit_rate: dict[str, float] = {}
+    if total_days:
+        for pid, count in hit_counts.items():
+            hit_rate[pid] = round(count / total_days * 100)
+
+    return {"days_counted": total_days, "hit_rate": hit_rate}
+
+
+def delete_entry(for_date: date, idx: int) -> bool:
+    data = _load(for_date)
+    if idx < 0 or idx >= len(data["entries"]):
+        return False
+    data["entries"].pop(idx)
+    _save(data, for_date)
+    return True
+
+
+def update_entry(for_date: date, idx: int, note: str) -> bool:
+    data = _load(for_date)
+    if idx < 0 or idx >= len(data["entries"]):
+        return False
+    data["entries"][idx]["note"] = note
+    _save(data, for_date)
+    return True
+
+
 def week_history(days: int = 7) -> list[dict]:
     """Return a list of daily summaries for the past N days, most recent first."""
     today = date.today()

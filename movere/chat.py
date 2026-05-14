@@ -5,6 +5,7 @@ import anthropic
 
 from . import projects as proj_store
 from . import logger
+from . import context as ctx
 
 
 _TOOLS = [
@@ -59,6 +60,17 @@ _TOOLS = [
         "name": "list_projects",
         "description": "Return the current list of active projects (read-only, no side effects).",
         "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "save_context",
+        "description": "Save a note about the user's life context so tomorrow's coaching digest is aware of it. Use this when the user shares something meaningful that will affect tomorrow — a late night, a big event, a stressful situation, a milestone. Do not use it for routine logging.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note": {"type": "string", "description": "A concise summary of the context to remember, written in third person (e.g. 'User went to a rave tonight and expects poor sleep tomorrow.')"},
+            },
+            "required": ["note"],
+        },
     },
 ]
 
@@ -121,6 +133,10 @@ def _execute_tool(name: str, inputs: dict) -> str:
         if not projects:
             return "No active projects yet."
         return "\n".join(f"- {p['name']} (goal: {p.get('goal') or 'none'})" for p in projects)
+
+    elif name == "save_context":
+        ctx.save(inputs["note"])
+        return f"Saved: {inputs['note']}"
 
     return f"Unknown tool: {name}"
 

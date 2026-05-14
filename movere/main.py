@@ -149,11 +149,13 @@ def cmd_digest(args: argparse.Namespace) -> None:
 
         yesterday_log = logger.yesterday_summary()
 
+    week_stats = logger.week_stats()
+
     print("Generating AI coaching note...")
-    coaching_note = digest.generate_coaching_note(cfg, fitness, calendar_data, screen, yesterday_log)
+    coaching_note = digest.generate_coaching_note(cfg, fitness, calendar_data, screen, yesterday_log, week_stats)
 
     print("Rendering email...")
-    html = digest.render_html(today, coaching_note, fitness, calendar_data, screen, yesterday_log, lookahead)
+    html = digest.render_html(today, coaching_note, fitness, calendar_data, screen, yesterday_log, lookahead, week_stats)
 
     if args.dry_run or args.mock:
         _print_summary(today, coaching_note, fitness, calendar_data, screen, yesterday_log)

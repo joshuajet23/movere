@@ -65,6 +65,10 @@
           <div class="label">Sleep (hrs)</div>
         </div>
         <div class="metric">
+          <div class="value">{{ fitness.sleep_score | default('—') }}</div>
+          <div class="label">Sleep Score</div>
+        </div>
+        <div class="metric">
           <div class="value">{{ fitness.hrv | default('—') }}</div>
           <div class="label">HRV</div>
         </div>
@@ -79,6 +83,21 @@
       </p>
       {% endif %}
     </div>
+
+    <!-- Weekly Stats -->
+    {% if week_stats and week_stats.hit_rate %}
+    <div class="section">
+      <h2>This Week <span class="tag tag-fitness">{{ week_stats.days_counted }} days</span></h2>
+      <div class="metric-row">
+        {% for pid, pct in week_stats.hit_rate.items() %}
+        <div class="metric">
+          <div class="value">{{ pct }}%</div>
+          <div class="label">{{ pid | replace('-', ' ') | title }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
     <!-- Screen Time -->
     {% if screen and not screen.error %}

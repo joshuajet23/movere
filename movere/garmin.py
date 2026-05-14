@@ -44,9 +44,12 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
         total_steps = sum(s.get("steps", 0) for s in steps_data) if steps_data else 0
 
         sleep_hours = None
+        sleep_score = None
         if sleep_data and "dailySleepDTO" in sleep_data:
-            seconds = sleep_data["dailySleepDTO"].get("sleepTimeSeconds", 0)
+            dto = sleep_data["dailySleepDTO"]
+            seconds = dto.get("sleepTimeSeconds", 0)
             sleep_hours = round(seconds / 3600, 1)
+            sleep_score = dto.get("sleepScore")
 
         hrv_value = None
         if hrv_data and "hrvSummary" in hrv_data:
@@ -67,6 +70,7 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
             "date": date_str,
             "steps": total_steps,
             "sleep_hours": sleep_hours,
+            "sleep_score": sleep_score,
             "hrv": hrv_value,
             "body_battery": battery_value,
             "activity": activity_name,

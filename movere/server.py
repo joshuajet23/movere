@@ -272,6 +272,7 @@ _HISTORY_PAGE = """<!DOCTYPE html>
     .day-date { font-size: 12px; color: #aaa; }
     .entry {
       display: flex;
+      align-items: baseline;
       gap: 10px;
       padding: 7px 0;
       font-size: 14px;
@@ -285,10 +286,36 @@ _HISTORY_PAGE = """<!DOCTYPE html>
       letter-spacing: 0.07em;
       color: #888;
       min-width: 100px;
+      flex-shrink: 0;
       padding-top: 2px;
     }
-    .entry-note { color: #1a1a1a; }
+    .entry-note {
+      flex: 1;
+      color: #1a1a1a;
+      cursor: text;
+      border-radius: 3px;
+      padding: 1px 3px;
+    }
+    .entry-note:focus {
+      outline: none;
+      background: #fff;
+      box-shadow: 0 0 0 2px #1a1a1a22;
+    }
+    .entry-actions { display: flex; gap: 8px; flex-shrink: 0; opacity: 0; transition: opacity 0.15s; }
+    .entry:hover .entry-actions { opacity: 1; }
+    .btn-action {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      color: #aaa;
+    }
+    .btn-action:hover { color: #1a1a1a; background: #eee; }
+    .btn-delete:hover { color: #c0392b; background: #fdecea; }
     .empty { font-size: 13px; color: #ccc; font-style: italic; }
+    .entry.deleting { opacity: 0.3; pointer-events: none; transition: opacity 0.2s; }
   </style>
 </head>
 <body>
@@ -299,16 +326,20 @@ _HISTORY_PAGE = """<!DOCTYPE html>
   </header>
   <div class="container">
     {% for day in history %}
-    <div class="day">
+    <div class="day" data-date="{{ day.date }}">
       <div class="day-header">
         <span class="day-name">{{ day.day }}</span>
         <span class="day-date">{{ day.date }}</span>
       </div>
       {% if day.entries %}
         {% for entry in day.entries %}
-        <div class="entry">
+        <div class="entry" data-idx="{{ loop.index0 }}">
           <span class="entry-project">{{ (entry.project or 'general') | replace('-', ' ') }}</span>
-          <span class="entry-note">{{ entry.note }}</span>
+          <span class="entry-note" contenteditable="true" spellcheck="false">{{ entry.note }}</span>
+          <div class="entry-actions">
+            <button class="btn-action btn-save" title="Save edit" style="display:none;">Save</button>
+            <button class="btn-action btn-delete" title="Delete">&#x2715;</button>
+          </div>
         </div>
         {% endfor %}
       {% else %}
@@ -317,6 +348,53 @@ _HISTORY_PAGE = """<!DOCTYPE html>
     </div>
     {% endfor %}
   </div>
+  <script>
+    document.querySelectorAll('.entry-note').forEach(el => {
+      const entry = el.closest('.entry');
+      const saveBtn = entry.querySelector('.btn-save');
+      const original = el.textContent;
+
+      el.addEventListener('input', () => {
+        saveBtn.style.display = el.textContent !== original ? '' : 'none';
+      });
+
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveBtn.click(); }
+        if (e.key === 'Escape') { el.textContent = original; saveBtn.style.display = 'none'; el.blur(); }
+      });
+
+      saveBtn.addEventListener('click', async () => {
+        const date = entry.closest('.day').dataset.date;
+        const idx = parseInt(entry.dataset.idx);
+        const note = el.textContent.trim();
+        const res = await fetch('/history/entry', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, idx, note }),
+        });
+        if (res.ok) { saveBtn.style.display = 'none'; }
+      });
+    });
+
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const entry = btn.closest('.entry');
+        const date = entry.closest('.day').dataset.date;
+        const idx = parseInt(entry.dataset.idx);
+        entry.classList.add('deleting');
+        const res = await fetch('/history/entry', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, idx }),
+        });
+        if (res.ok) {
+          entry.remove();
+        } else {
+          entry.classList.remove('deleting');
+        }
+      });
+    });
+  </script>
 </body>
 </html>"""
 
@@ -333,6 +411,27 @@ def history():
     env = Environment()
     html = env.from_string(_HISTORY_PAGE).render(history=days)
     return html, 200, {"Content-Type": "text/html"}
+
+
+@app.route("/history/entry", methods=["DELETE", "PATCH"])
+def history_entry():
+    from datetime import date as _date
+    body = request.get_json(force=True)
+    try:
+        d = _date.fromisoformat(body["date"])
+        idx = int(body["idx"])
+    except (KeyError, ValueError):
+        return jsonify({"error": "invalid request"}), 400
+
+    if request.method == "DELETE":
+        ok = logger.delete_entry(d, idx)
+        return jsonify({"ok": ok}), (200 if ok else 404)
+
+    note = (body.get("note") or "").strip()
+    if not note:
+        return jsonify({"error": "note required"}), 400
+    ok = logger.update_entry(d, idx, note)
+    return jsonify({"ok": ok}), (200 if ok else 404)
 
 
 @app.post("/chat")
