@@ -1,0 +1,42 @@
+# Copy this file to settings.toml and fill in your credentials.
+# settings.toml is gitignored — never commit it.
+
+[anthropic]
+api_key = "sk-ant-..."
+model = "claude-opus-4-7"
+
+[garmin]
+email = "you@example.com"
+password = "your-garmin-password"
+
+[google]
+# Path to the OAuth credentials JSON downloaded from Google Cloud Console.
+credentials_file = "config/google_credentials.json"
+# Token is auto-generated on first run via OAuth flow.
+token_file = "config/google_token.json"
+# Calendar IDs to include (get from calendar settings).
+calendar_ids = ["primary"]
+
+[email]
+# SMTP settings (e.g., Gmail with app password)
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+smtp_user = "you@gmail.com"
+smtp_password = "your-app-password"
+# Who receives the digest
+recipient = "you@gmail.com"
+sender_name = "Movere"
+
+[projects]
+# Names shown in the digest and used as section headers
+fitness = "Fitness"
+career = "Career Applications"
+mentoring = "Mentoring"
+
+[schedule]
+# Local timezone for "today" calculations
+timezone = "America/Los_Angeles"
+# How many days back to pull Garmin data
+garmin_lookback_days = 1
+# How many days ahead to pull calendar events
+calendar_lookahead_days = 7
