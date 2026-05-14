@@ -49,7 +49,7 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
             dto = sleep_data["dailySleepDTO"]
             seconds = dto.get("sleepTimeSeconds", 0)
             sleep_hours = round(seconds / 3600, 1)
-            sleep_score = dto.get("sleepScore")
+            sleep_score = (dto.get("sleepScores") or {}).get("overall", {}).get("value")
 
         hrv_value = None
         if hrv_data and "hrvSummary" in hrv_data:
