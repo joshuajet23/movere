@@ -64,32 +64,26 @@ def fetch(cfg: dict | None = None) -> dict:
         return {"error": str(e), "total_minutes": None, "devices": {}}
 
     with con:
-        # App usage rows with device identifier
+        # App usage rows with device identifier (ZDEVICEID is in ZSOURCE, not ZOBJECT)
         rows = con.execute(
             """
             SELECT
-                ZVALUESTRING,
-                ZDEVICEID,
-                SUM(MAX(ZENDDATE, ZSTARTDATE) - ZSTARTDATE) AS secs
-            FROM ZOBJECT
-            WHERE ZSTREAMNAME = '/app/usage'
-              AND ZSTARTDATE >= ?
-              AND ZSTARTDATE <  ?
-              AND ZVALUESTRING IS NOT NULL
-            GROUP BY ZVALUESTRING, ZDEVICEID
+                o.ZVALUESTRING,
+                s.ZDEVICEID,
+                SUM(MAX(o.ZENDDATE, o.ZSTARTDATE) - o.ZSTARTDATE) AS secs
+            FROM ZOBJECT o
+            LEFT JOIN ZSOURCE s ON o.ZSOURCE = s.Z_PK
+            WHERE o.ZSTREAMNAME = '/app/usage'
+              AND o.ZSTARTDATE >= ?
+              AND o.ZSTARTDATE <  ?
+              AND o.ZVALUESTRING IS NOT NULL
+            GROUP BY o.ZVALUESTRING, s.ZDEVICEID
             ORDER BY secs DESC
             """,
             (start_cd, end_cd),
         ).fetchall()
 
-        # Map device IDs to human names when available
         device_names: dict[str, str] = {}
-        try:
-            for row in con.execute("SELECT ZIDENTIFIER, ZNAME FROM ZDEVICE"):
-                if row[0] and row[1]:
-                    device_names[row[0]] = row[1]
-        except sqlite3.OperationalError:
-            pass  # ZDEVICE table may not exist on all macOS versions
 
     # Aggregate by device
     devices: dict[str, dict] = {}
