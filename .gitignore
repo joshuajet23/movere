@@ -14,6 +14,8 @@ config/google_credentials.json
 config/google_token.json
 data/*.json
 data/*.csv
+data/*.html
+data/*.log
 
 # Keep example configs
 !config/settings.example.toml
