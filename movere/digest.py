@@ -24,10 +24,15 @@ def _build_coaching_prompt(fitness: dict, calendar_data: dict, screen: dict, yes
 
     parts.append("\n## Data for today\n")
 
+    p5k = fitness.get("projected_5k")
+    p5k_secs = fitness.get("projected_5k_seconds")
+    goal_secs = 20 * 60
+    p5k_gap = f"{abs(p5k_secs - goal_secs)}s {'over' if p5k_secs > goal_secs else 'under'} goal" if p5k_secs else ""
     parts.append(f"**Fitness (yesterday):** steps={fitness.get('steps')}, "
                  f"sleep={fitness.get('sleep_hours')}h, sleep score={fitness.get('sleep_score')}, "
                  f"avg stress={fitness.get('stress')}, resting HR={fitness.get('resting_hr')} bpm, "
-                 f"VO2 max={fitness.get('vo2_max')}, activity={fitness.get('activity') or 'none logged'}")
+                 f"VO2 max={fitness.get('vo2_max')}, projected 5K={p5k or '—'} ({p5k_gap}), "
+                 f"goal=sub-20:00 5K, activity={fitness.get('activity') or 'none logged'}")
 
     if not screen.get("error") and screen.get("phone_minutes") is not None:
         goal = screen["goal_minutes"]

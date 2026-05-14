@@ -39,6 +39,7 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
         sleep_data = client.get_sleep_data(date_str)
         stress_data = client.get_stress_data(date_str)
         max_metrics = client.get_max_metrics(date_str)
+        race_preds = client.get_race_predictions()
         activities = client.get_activities_by_date(date_str, date_str)
 
         total_steps = sum(s.get("steps", 0) for s in steps_data) if steps_data else 0
@@ -63,6 +64,14 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
         if max_metrics and isinstance(max_metrics, list) and max_metrics:
             vo2_max = (max_metrics[0].get("generic") or {}).get("vo2MaxValue")
 
+        projected_5k = None
+        projected_5k_seconds = None
+        if race_preds and isinstance(race_preds, dict):
+            secs = race_preds.get("time5K")
+            if secs:
+                projected_5k_seconds = secs
+                projected_5k = f"{secs // 60}:{secs % 60:02d}"
+
         activity_name = None
         if activities:
             a = activities[0]
@@ -76,6 +85,8 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
             "stress": stress_value,
             "resting_hr": resting_hr,
             "vo2_max": vo2_max,
+            "projected_5k": projected_5k,
+            "projected_5k_seconds": projected_5k_seconds,
             "activity": activity_name,
         }
 
@@ -89,4 +100,4 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
         if fallback:
             fallback["error"] = f"Garmin unavailable ({e}); showing cached data from {fallback['date']}"
             return fallback
-        return {"error": str(e), "steps": None, "sleep_hours": None, "sleep_score": None, "stress": None, "resting_hr": None, "vo2_max": None, "activity": None}
+        return {"error": str(e), "steps": None, "sleep_hours": None, "sleep_score": None, "stress": None, "resting_hr": None, "vo2_max": None, "projected_5k": None, "projected_5k_seconds": None, "activity": None}

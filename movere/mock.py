@@ -12,6 +12,8 @@ def fitness() -> dict:
         "stress": 28,
         "resting_hr": 52,
         "vo2_max": 54.0,
+        "projected_5k": "21:04",
+        "projected_5k_seconds": 1264,
         "activity": "Running (5.3 km)",
     }
 

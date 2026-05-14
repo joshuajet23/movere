@@ -81,6 +81,24 @@
           <div class="label">VO2 Max</div>
         </div>
       </div>
+      {% if fitness.projected_5k %}
+      {% set goal_secs = 1200 %}
+      {% set curr_secs = fitness.projected_5k_seconds %}
+      {% set gap_secs = curr_secs - goal_secs %}
+      <div style="margin-top:16px; padding:12px 14px; background:#f9f7f4; border-radius:6px;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+          <span style="font-size:13px; font-weight:bold;">Projected 5K &mdash; {{ fitness.projected_5k }}</span>
+          <span style="font-size:12px; color:{% if gap_secs <= 0 %}#2d7a3a{% else %}#888{% endif %};">
+            goal: sub-20:00
+            {% if gap_secs > 0 %}&nbsp;&mdash;&nbsp;{{ gap_secs }}s to go{% else %}&nbsp;&#10003; achieved{% endif %}
+          </span>
+        </div>
+        {% set pct = [(goal_secs / curr_secs * 100) | int, 100] | min %}
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:{{ pct }}%; background:{% if gap_secs <= 0 %}#2d7a3a{% else %}#1a1a1a{% endif %};"></div>
+        </div>
+      </div>
+      {% endif %}
       {% if fitness.activity %}
       <p style="font-size:13px; color:#555; margin-top:8px;">
         Yesterday: <strong>{{ fitness.activity }}</strong>
