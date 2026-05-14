@@ -1,6 +1,9 @@
 """Load and expose settings from config/settings.toml."""
 
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib  # type: ignore[no-redef]
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent

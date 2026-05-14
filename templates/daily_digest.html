@@ -28,6 +28,13 @@
     .tag-fitness { background: #dff0e0; color: #2d7a3a; }
     .tag-career { background: #dde8f7; color: #1e4d9e; }
     .tag-mentoring { background: #f5e6d8; color: #9e4e1e; }
+    .tag-screen { background: #ede8f7; color: #4e1e9e; }
+    .progress-bar { height: 6px; background: #eee; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: #4e1e9e; }
+    .progress-fill.over { background: #c0392b; }
+    .app-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
+    .app-row:last-child { border-bottom: none; }
+    .app-row .app-mins { color: #888; }
   </style>
 </head>
 <body>
@@ -72,6 +79,59 @@
       </p>
       {% endif %}
     </div>
+
+    <!-- Screen Time -->
+    {% if screen and not screen.error %}
+    <div class="section">
+      <h2>Screen Time <span class="tag tag-screen">Goal: reduce</span></h2>
+      {% set pct = [((screen.phone_minutes / screen.goal_minutes) * 100) | int, 100] | min %}
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+        <span style="font-size:22px; font-weight:bold;">{{ (screen.phone_minutes / 60) | round(1) }}h <span style="font-size:13px; font-weight:normal; color:#888;">phone</span></span>
+        <span style="font-size:12px; color:#888;">goal: {{ screen.goal_minutes }} min
+          {% if screen.over_goal %}
+          <span style="color:#c0392b; font-weight:bold;">+{{ (screen.phone_minutes - screen.goal_minutes) | int }} min over</span>
+          {% else %}
+          <span style="color:#2d7a3a; font-weight:bold;">{{ (screen.goal_minutes - screen.phone_minutes) | int }} min under</span>
+          {% endif %}
+        </span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill {% if screen.over_goal %}over{% endif %}" style="width:{{ pct }}%;"></div>
+      </div>
+      <p style="font-size:12px; color:#bbb; margin:6px 0 10px;">Mac: {{ screen.mac_minutes | int }} min (not tracked toward goal)</p>
+      {% for device_name, data in screen.devices.items() %}
+      <p style="font-size:12px; color:#888; margin:14px 0 6px; text-transform:uppercase; letter-spacing:0.08em;">{{ device_name }}</p>
+      {% for app in data.top_apps %}
+      <div class="app-row">
+        <span>{{ app.name }}</span>
+        <span class="app-mins">{{ app.minutes | int }} min</span>
+      </div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Personal Projects -->
+    {% if yesterday_log and (yesterday_log.by_project or yesterday_log.missed) %}
+    <div class="section">
+      <h2>Personal Projects <span class="tag tag-career">Yesterday</span></h2>
+      {% for pid, notes in yesterday_log.by_project.items() %}
+      <div style="margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:bold; color:#1a1a1a; margin-bottom:4px;">
+          ✓ {{ pid | replace("-", " ") | title }}
+        </div>
+        {% for note in notes %}
+        <div style="font-size:13px; color:#555; padding-left:16px;">→ {{ note }}</div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+      {% for p in yesterday_log.missed %}
+      <div style="margin-bottom:8px; font-size:13px; color:#aaa;">
+        ✗ {{ p.name }}{% if p.goal %} <span style="font-size:11px;">({{ p.goal }})</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- Career Applications -->
     <div class="section">

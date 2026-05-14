@@ -33,6 +33,10 @@ fitness = "Fitness"
 career = "Career Applications"
 mentoring = "Mentoring"
 
+[screentime]
+# Daily screen time goal in minutes (used to flag over/under in the digest)
+daily_goal_minutes = 180
+
 [schedule]
 # Local timezone for "today" calculations
 timezone = "America/Los_Angeles"

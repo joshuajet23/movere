@@ -1,12 +1,12 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "movere"
 version = "0.1.0"
 description = "Personal Project OS — daily AI coaching digest for your most important life projects"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 dependencies = [
     "anthropic>=0.25.0",
     "garminconnect>=0.2.19",
