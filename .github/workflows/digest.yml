@@ -1,0 +1,31 @@
+name: Movere Daily Digest
+
+on:
+  schedule:
+    - cron: '10 10 * * *'  # 6:10 AM EDT (UTC-4)
+  workflow_dispatch:        # allow manual trigger from GitHub UI
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Write config files from secrets
+        run: |
+          echo "${{ secrets.SETTINGS_TOML }}" > config/settings.toml
+          echo "${{ secrets.GOOGLE_CREDENTIALS_B64 }}" | base64 -d > config/google_credentials.json
+          echo "${{ secrets.GOOGLE_TOKEN_B64 }}"       | base64 -d > config/google_token.json
+          mkdir -p data/garmin_tokens
+          echo "${{ secrets.GARMIN_TOKENS_B64 }}"      | base64 -d > data/garmin_tokens/garmin_tokens.json
+
+      - name: Send digest
+        run: python -m movere.main
