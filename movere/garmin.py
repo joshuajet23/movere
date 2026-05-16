@@ -1,6 +1,7 @@
 """Fetch yesterday's health metrics from Garmin Connect."""
 
 import json
+import time
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -26,12 +27,24 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
 
     try:
         token_dir = str(config.data_dir() / "garmin_tokens")
-        try:
-            client = Garmin()
-            client.login(tokenstore=token_dir)
-        except Exception:
-            client = Garmin(cfg["garmin"]["email"], cfg["garmin"]["password"])
-            client.login(tokenstore=token_dir)
+        client = None
+        last_err = None
+        for attempt in range(3):
+            try:
+                if attempt == 0:
+                    c = Garmin()
+                    c.login(tokenstore=token_dir)
+                else:
+                    c = Garmin(cfg["garmin"]["email"], cfg["garmin"]["password"])
+                    c.login(tokenstore=token_dir)
+                client = c
+                break
+            except Exception as e:
+                last_err = e
+                if attempt < 2:
+                    time.sleep(10 * (attempt + 1))
+        if client is None:
+            raise last_err
 
         date_str = yesterday.isoformat()
 
@@ -97,7 +110,10 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
 
     except Exception as e:
         fallback = _latest_cache(config.data_dir())
+        if fallback and fallback.get("date") == yesterday.isoformat():
+            return fallback  # same-day cache, no problem
         if fallback:
-            fallback["error"] = f"Garmin unavailable ({e}); showing cached data from {fallback['date']}"
+            fallback["stale"] = True
+            fallback["error"] = f"⚠ Garmin unavailable — showing data from {fallback['date']} (not yesterday)"
             return fallback
         return {"error": str(e), "steps": None, "sleep_hours": None, "sleep_score": None, "stress": None, "resting_hr": None, "vo2_max": None, "projected_5k": None, "projected_5k_seconds": None, "activity": None}

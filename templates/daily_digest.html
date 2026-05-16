@@ -54,7 +54,7 @@
 
     <!-- Fitness -->
     <div class="section">
-      <h2>Fitness <span class="tag tag-fitness">Garmin</span></h2>
+      <h2>Fitness <span class="tag tag-fitness">Garmin</span>{% if fitness.stale %} <span class="tag" style="background:#fff3cd;color:#856404;">stale — from {{ fitness.date }}</span>{% endif %}</h2>
       <div class="metric-row">
         <div class="metric">
           <div class="value">{{ fitness.steps | default('—') }}</div>
