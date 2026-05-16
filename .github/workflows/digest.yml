@@ -21,7 +21,7 @@ jobs:
 
       - name: Write config files from secrets
         run: |
-          echo "${{ secrets.SETTINGS_TOML }}" > config/settings.toml
+          echo "${{ secrets.SETTINGS_TOML_B64 }}"      | base64 -d > config/settings.toml
           echo "${{ secrets.GOOGLE_CREDENTIALS_B64 }}" | base64 -d > config/google_credentials.json
           echo "${{ secrets.GOOGLE_TOKEN_B64 }}"       | base64 -d > config/google_token.json
           mkdir -p data/garmin_tokens
