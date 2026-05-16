@@ -97,6 +97,19 @@ def generate_coaching_note(cfg: dict, fitness: dict, calendar_data: dict,
     return message.content[0].text.strip()
 
 
+def _chat_url() -> str:
+    import socket, os
+    if os.environ.get("CI"):
+        return "http://localhost:7842/"
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+        return f"http://{ip}:7842/"
+    except Exception:
+        return "http://localhost:7842/"
+
+
 def render_html(date_str: str, coaching_note: str, fitness: dict, calendar_data: dict,
                 screen: dict, yesterday_log: dict, lookahead_days: int,
                 week_stats: dict | None = None) -> str:
@@ -117,4 +130,5 @@ def render_html(date_str: str, coaching_note: str, fitness: dict, calendar_data:
         general_events=calendar_data.get("general", {"events": []}),
         lookahead_days=lookahead_days,
         week_stats=week_stats,
+        chat_url=_chat_url(),
     )

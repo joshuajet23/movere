@@ -24,8 +24,54 @@ jobs:
           echo "${{ secrets.SETTINGS_TOML_B64 }}"      | base64 -d > config/settings.toml
           echo "${{ secrets.GOOGLE_CREDENTIALS_B64 }}" | base64 -d > config/google_credentials.json
           echo "${{ secrets.GOOGLE_TOKEN_B64 }}"       | base64 -d > config/google_token.json
+
+      - name: Restore Garmin token cache
+        id: garmin-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/garmin_tokens
+          key: garmin-tokens-${{ github.run_number }}
+          restore-keys: garmin-tokens-
+
+      - name: Bootstrap Garmin tokens if no cache
+        if: steps.garmin-cache.outputs.cache-hit != 'true'
+        run: |
           mkdir -p data/garmin_tokens
-          echo "${{ secrets.GARMIN_TOKENS_B64 }}"      | base64 -d > data/garmin_tokens/garmin_tokens.json
+          echo "${{ secrets.GARMIN_TOKENS_B64 }}" | base64 -d > data/garmin_tokens/garmin_tokens.json
 
       - name: Send digest
+        env:
+          SCREENTIME_CACHE_B64: ${{ secrets.SCREENTIME_CACHE_B64 }}
         run: python -m movere.main
+
+      - name: Save updated Garmin token cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/garmin_tokens
+          key: garmin-tokens-${{ github.run_number }}
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          python - << 'EOF'
+          import smtplib, tomllib
+          from email.mime.text import MIMEText
+
+          with open("config/settings.toml", "rb") as f:
+              cfg = tomllib.load(f)["email"]
+
+          msg = MIMEText(
+              "The Movere digest failed to send this morning.\n\n"
+              "Check the run at: https://github.com/joshuajet23/movere/actions\n"
+          )
+          msg["Subject"] = "⚠ Movere digest failed"
+          msg["From"] = f"Joshua Torres <{cfg['smtp_user']}>"
+          msg["To"] = cfg["recipient"]
+
+          with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"]) as s:
+              s.starttls()
+              s.login(cfg["smtp_user"], cfg["smtp_password"])
+              s.sendmail(cfg["smtp_user"], cfg["recipient"], msg.as_string())
+          print("Failure notification sent.")
+          EOF

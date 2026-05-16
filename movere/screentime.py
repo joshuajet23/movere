@@ -50,6 +50,13 @@ def _friendly_name(bundle: str) -> str:
 
 def fetch(cfg: dict | None = None) -> dict:
     if not _DB.exists():
+        import os, json as _json, base64
+        cached = os.environ.get("SCREENTIME_CACHE_B64")
+        if cached:
+            try:
+                return _json.loads(base64.b64decode(cached))
+            except Exception:
+                pass
         return {"error": "knowledgeC.db not found", "total_minutes": None, "devices": {}}
 
     yesterday = date.today() - timedelta(days=1)
