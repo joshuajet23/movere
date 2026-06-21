@@ -36,10 +36,12 @@ def _print_summary(today: str, coaching_note: str, fitness: dict, calendar_data:
     else:
         goal = screen["goal_minutes"]
         if screen.get("phone_source") == "unavailable":
-            print(f"  Phone: — (iOS Shortcut not set up yet)")
+            print(f"  Phone: — (iOS Shortcut not yet received)")
         else:
             over = "⚠ over goal" if screen["over_goal"] else "✓ under goal"
-            print(f"  Phone: {screen.get('phone_minutes', '—')} min  |  Goal: {goal} min  {over}")
+            trend = screen.get("phone_trend", {})
+            trend_str = f"  |  {trend['days']}d avg: {trend['avg']} min" if trend.get("avg") else ""
+            print(f"  Phone: {screen.get('phone_minutes', '—')} min  |  Goal: {goal} min  {over}{trend_str}")
         print(f"  Mac:   {screen.get('mac_minutes', '—')} min  (informational)")
 
     print("\n[ Personal Projects ]")

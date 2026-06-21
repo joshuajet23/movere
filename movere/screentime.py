@@ -1,11 +1,11 @@
-"""Read daily screen time from macOS knowledgeC.db (Mac) and an iCloud Drive
-JSON file written by an iOS Shortcut (iPhone).
+"""Read daily screen time from an iOS Shortcut (phone) and macOS knowledgeC.db (Mac).
 
-iPhone setup: create a Shortcut that runs at ~5:45 AM daily and saves a JSON
-file to iCloud Drive/Movere/phone_screentime.json with the format:
-  {"date": "YYYY-MM-DD", "total_minutes": <number>}
+iPhone: a Shortcut saves {"total_minutes": <number>} to
+  ~/Library/Mobile Documents/com~apple~CloudDocs/Movere/phone_screentime.json
+  at ~5:45 AM daily. Movere reads it at digest time, stamps it with today's
+  run date, and archives it for trend tracking.
 
-Mac data: requires Terminal (or your Python binary) to have Full Disk Access:
+Mac data requires Terminal to have Full Disk Access:
   System Settings → Privacy & Security → Full Disk Access → add Terminal.app
 """
 
@@ -14,11 +14,12 @@ import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
 
+from . import config
+
 _ICLOUD_SCREENTIME = (
     Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Movere/phone_screentime.json"
 )
 
-# Core Data epoch offset: seconds between 2001-01-01 and 1970-01-01
 _CD_EPOCH = 978307200
 
 _DB = Path.home() / "Library/Application Support/Knowledge/knowledgeC.db"
@@ -32,18 +33,49 @@ _CATEGORY_KEYWORDS = {
 }
 
 
-def _read_icloud_phone(yesterday: date) -> float | None:
-    """Return phone minutes from the iCloud Shortcut file, or None if absent/stale."""
+# ── phone history (iCloud Shortcut) ──────────────────────────────────────────
+
+def _phone_history_path(d: date) -> Path:
+    return config.data_dir() / f"screentime_phone_{d}.json"
+
+
+def _read_icloud_phone() -> float | None:
+    """Read total_minutes from the iCloud Shortcut file. No date expected in the file."""
     try:
         if not _ICLOUD_SCREENTIME.exists():
             return None
         data = json.loads(_ICLOUD_SCREENTIME.read_text())
-        if data.get("date") == yesterday.isoformat():
-            return float(data["total_minutes"])
+        val = data.get("total_minutes")
+        return float(val) if val is not None else None
+    except Exception:
+        return None
+
+
+def _save_phone_history(run_date: date, minutes: float) -> None:
+    try:
+        _phone_history_path(run_date).write_text(
+            json.dumps({"date": run_date.isoformat(), "total_minutes": minutes})
+        )
     except Exception:
         pass
-    return None
 
+
+def _load_phone_trend(exclude: date, days: int = 7) -> dict:
+    """Average phone minutes over the last `days` days, not counting `exclude`."""
+    entries = []
+    for i in range(1, days + 1):
+        p = _phone_history_path(exclude - timedelta(days=i))
+        if p.exists():
+            try:
+                entries.append(float(json.loads(p.read_text())["total_minutes"]))
+            except Exception:
+                pass
+    if not entries:
+        return {"avg": None, "days": 0}
+    return {"avg": round(sum(entries) / len(entries), 1), "days": len(entries)}
+
+
+# ── Mac screen time (knowledgeC.db) ──────────────────────────────────────────
 
 def _to_cd(d: date) -> float:
     import calendar
@@ -62,36 +94,23 @@ def _categorize(bundle_or_name: str) -> str:
 
 def _friendly_name(bundle: str) -> str:
     parts = bundle.split(".")
-    # com.apple.Safari → Safari, com.google.Chrome → Chrome
     if len(parts) >= 3:
         return parts[-1].replace("-", " ").title()
     return bundle.title()
 
 
-def fetch(cfg: dict | None = None) -> dict:
+def _fetch_mac_minutes(yesterday: date) -> tuple[float, dict]:
+    """Return (mac_total_minutes, devices_dict) from knowledgeC.db."""
     if not _DB.exists():
-        import os, json as _json, base64
-        cached = os.environ.get("SCREENTIME_CACHE_B64")
-        if cached:
-            try:
-                return _json.loads(base64.b64decode(cached))
-            except Exception:
-                pass
-        return {"error": "knowledgeC.db not found", "total_minutes": None, "devices": {}}
-
-    yesterday = date.today() - timedelta(days=1)
+        return 0.0, {}
     start_cd = _to_cd(yesterday)
     end_cd = _to_cd(date.today())
-
-    goal_minutes = (cfg or {}).get("screentime", {}).get("daily_goal_minutes", 180)
-
     try:
         con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)
-    except sqlite3.OperationalError as e:
-        return {"error": str(e), "total_minutes": None, "devices": {}}
+    except sqlite3.OperationalError:
+        return 0.0, {}
 
     with con:
-        # App usage rows with device identifier (ZDEVICEID is in ZSOURCE, not ZOBJECT)
         rows = con.execute(
             """
             SELECT
@@ -110,47 +129,58 @@ def fetch(cfg: dict | None = None) -> dict:
             (start_cd, end_cd),
         ).fetchall()
 
-        device_names: dict[str, str] = {}
-
-    # Aggregate by device
     devices: dict[str, dict] = {}
     total_secs = 0.0
-
     for bundle, device_id, secs in rows:
-        label = device_names.get(device_id or "", device_id or "Mac")
+        label = device_id or "Mac"
         if label not in devices:
             devices[label] = {"total_minutes": 0.0, "top_apps": [], "by_category": {}}
-
         minutes = secs / 60
         devices[label]["total_minutes"] = round(devices[label]["total_minutes"] + minutes, 1)
         devices[label]["top_apps"].append({"name": _friendly_name(bundle), "minutes": round(minutes, 1)})
         cat = _categorize(bundle)
-        devices[label]["by_category"][cat] = round(
-            devices[label]["by_category"].get(cat, 0) + minutes, 1
-        )
+        devices[label]["by_category"][cat] = round(devices[label]["by_category"].get(cat, 0) + minutes, 1)
         total_secs += secs
 
-    # Sort top apps per device, keep top 5
     for d in devices.values():
         d["top_apps"] = sorted(d["top_apps"], key=lambda x: x["minutes"], reverse=True)[:5]
 
-    total_minutes = round(total_secs / 60, 1)
-
-    # Mac = everything in knowledgeC.db (ZDEVICEID is always null on Mac-only sync)
     mac_minutes = round(sum(d["total_minutes"] for d in devices.values()), 1)
+    return mac_minutes, devices
 
-    # Phone = iCloud Drive file written by iOS Shortcut; falls back to 0 if absent
-    icloud_phone = _read_icloud_phone(yesterday)
-    phone_minutes = round(icloud_phone, 1) if icloud_phone is not None else 0.0
-    phone_source = "shortcut" if icloud_phone is not None else "unavailable"
-    over_goal = phone_minutes > goal_minutes
+
+# ── public fetch ──────────────────────────────────────────────────────────────
+
+def fetch(cfg: dict | None = None) -> dict:
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    goal_minutes = (cfg or {}).get("screentime", {}).get("daily_goal_minutes", 180)
+
+    # Phone: read iCloud file, persist for trend tracking
+    icloud_mins = _read_icloud_phone()
+    if icloud_mins is not None:
+        _save_phone_history(today, icloud_mins)
+        phone_minutes: float | None = round(icloud_mins, 1)
+        phone_source = "shortcut"
+    else:
+        phone_minutes = None
+        phone_source = "unavailable"
+
+    phone_trend = _load_phone_trend(exclude=today)
+
+    over_goal = (phone_minutes or 0.0) > goal_minutes
+
+    # Mac: knowledgeC.db (best-effort, not critical)
+    try:
+        mac_minutes, devices = _fetch_mac_minutes(yesterday)
+    except Exception:
+        mac_minutes, devices = 0.0, {}
 
     return {
-        "date": yesterday.isoformat(),
-        "total_minutes": total_minutes,
-        "total_hours": round(total_minutes / 60, 1),
+        "date": today.isoformat(),
         "phone_minutes": phone_minutes,
         "phone_source": phone_source,
+        "phone_trend": phone_trend,
         "mac_minutes": mac_minutes,
         "goal_minutes": goal_minutes,
         "over_goal": over_goal,

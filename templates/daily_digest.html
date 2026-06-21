@@ -144,19 +144,17 @@
       <div class="progress-bar">
         <div class="progress-fill {% if screen.over_goal %}over{% endif %}" style="width:{{ pct }}%;"></div>
       </div>
+      {% if screen.phone_trend and screen.phone_trend.avg is not none %}
+      {% set delta = screen.phone_minutes - screen.phone_trend.avg %}
+      <p style="font-size:12px; color:#aaa; margin:6px 0 0;">
+        {{ screen.phone_trend.days }}-day avg: {{ screen.phone_trend.avg | int }} min
+        <span style="color:{% if delta > 0 %}#c0392b{% else %}#2d7a3a{% endif %};">
+          ({{ "%+d" | format(delta | int) }} min vs avg)
+        </span>
+      </p>
+      {% endif %}
       {% endif %}
       <p style="font-size:12px; color:#bbb; margin:6px 0 10px;">Mac: {{ screen.mac_minutes | int }} min (not tracked toward goal)</p>
-      {% if screen.phone_source != "unavailable" %}
-      {% for device_name, data in screen.devices.items() %}
-      <p style="font-size:12px; color:#888; margin:14px 0 6px; text-transform:uppercase; letter-spacing:0.08em;">{{ device_name }}</p>
-      {% for app in data.top_apps %}
-      <div class="app-row">
-        <span>{{ app.name }}</span>
-        <span class="app-mins">{{ app.minutes | int }} min</span>
-      </div>
-      {% endfor %}
-      {% endfor %}
-      {% endif %}
     </div>
     {% endif %}
 

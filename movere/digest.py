@@ -34,17 +34,18 @@ def _build_coaching_prompt(fitness: dict, calendar_data: dict, screen: dict, yes
                  f"VO2 max={fitness.get('vo2_max')}, projected 5K={p5k or '—'} ({p5k_gap}), "
                  f"goal=sub-20:00 5K, activity={fitness.get('activity') or 'none logged'}")
 
-    if not screen.get("error") and screen.get("phone_minutes") is not None:
+    if not screen.get("error") and screen.get("phone_source") == "shortcut":
         goal = screen["goal_minutes"]
         phone = screen["phone_minutes"]
         over = phone - goal
-        top_apps = []
-        for device_name, data in screen.get("devices", {}).items():
-            if any(k in device_name.lower() for k in ["iphone", "phone"]):
-                top_apps.extend(data.get("top_apps", [])[:3])
-        top_apps_str = ", ".join(f"{a['name']} ({a['minutes']}m)" for a in top_apps[:4])
         status = f"{over:+.0f} min vs {goal} min goal" if screen["over_goal"] else f"{abs(over):.0f} min under {goal} min goal"
-        parts.append(f"**Phone screen time (yesterday):** {phone} min ({status}). Top apps: {top_apps_str}. Goal: reduce phone usage.")
+        trend = screen.get("phone_trend", {})
+        if trend.get("avg") is not None:
+            delta = phone - trend["avg"]
+            trend_str = f"; {trend['days']}-day avg {trend['avg']} min ({delta:+.0f} min vs avg)"
+        else:
+            trend_str = ""
+        parts.append(f"**Phone screen time:** {phone} min ({status}{trend_str}). Goal: reduce phone usage.")
 
     # Personal projects
     by_proj = yesterday_log.get("by_project", {})
