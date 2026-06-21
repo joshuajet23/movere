@@ -1,15 +1,22 @@
-"""Read daily screen time from macOS knowledgeC.db.
+"""Read daily screen time from macOS knowledgeC.db (Mac) and an iCloud Drive
+JSON file written by an iOS Shortcut (iPhone).
 
-Covers all devices signed into the same Apple ID (Mac + iPhone) when
-Screen Time iCloud sync is enabled in System Settings → Screen Time.
+iPhone setup: create a Shortcut that runs at ~5:45 AM daily and saves a JSON
+file to iCloud Drive/Movere/phone_screentime.json with the format:
+  {"date": "YYYY-MM-DD", "total_minutes": <number>}
 
-Requires Terminal (or your Python binary) to have Full Disk Access:
+Mac data: requires Terminal (or your Python binary) to have Full Disk Access:
   System Settings → Privacy & Security → Full Disk Access → add Terminal.app
 """
 
+import json
 import sqlite3
 from datetime import date, timedelta
 from pathlib import Path
+
+_ICLOUD_SCREENTIME = (
+    Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Movere/phone_screentime.json"
+)
 
 # Core Data epoch offset: seconds between 2001-01-01 and 1970-01-01
 _CD_EPOCH = 978307200
@@ -23,6 +30,19 @@ _CATEGORY_KEYWORDS = {
     "communication": ["mail", "messages", "slack", "teams", "zoom", "facetime", "discord", "telegram", "whatsapp"],
     "browser": ["safari", "chrome", "firefox", "arc", "edge", "brave"],
 }
+
+
+def _read_icloud_phone(yesterday: date) -> float | None:
+    """Return phone minutes from the iCloud Shortcut file, or None if absent/stale."""
+    try:
+        if not _ICLOUD_SCREENTIME.exists():
+            return None
+        data = json.loads(_ICLOUD_SCREENTIME.read_text())
+        if data.get("date") == yesterday.isoformat():
+            return float(data["total_minutes"])
+    except Exception:
+        pass
+    return None
 
 
 def _to_cd(d: date) -> float:
@@ -116,18 +136,13 @@ def fetch(cfg: dict | None = None) -> dict:
 
     total_minutes = round(total_secs / 60, 1)
 
-    # Identify phone vs mac by device name heuristics
-    phone_minutes = 0.0
-    mac_minutes = 0.0
-    for device_name, data in devices.items():
-        name_lower = device_name.lower()
-        if any(k in name_lower for k in ["iphone", "phone"]):
-            phone_minutes += data["total_minutes"]
-        else:
-            mac_minutes += data["total_minutes"]
+    # Mac = everything in knowledgeC.db (ZDEVICEID is always null on Mac-only sync)
+    mac_minutes = round(sum(d["total_minutes"] for d in devices.values()), 1)
 
-    phone_minutes = round(phone_minutes, 1)
-    mac_minutes = round(mac_minutes, 1)
+    # Phone = iCloud Drive file written by iOS Shortcut; falls back to 0 if absent
+    icloud_phone = _read_icloud_phone(yesterday)
+    phone_minutes = round(icloud_phone, 1) if icloud_phone is not None else 0.0
+    phone_source = "shortcut" if icloud_phone is not None else "unavailable"
     over_goal = phone_minutes > goal_minutes
 
     return {
@@ -135,6 +150,7 @@ def fetch(cfg: dict | None = None) -> dict:
         "total_minutes": total_minutes,
         "total_hours": round(total_minutes / 60, 1),
         "phone_minutes": phone_minutes,
+        "phone_source": phone_source,
         "mac_minutes": mac_minutes,
         "goal_minutes": goal_minutes,
         "over_goal": over_goal,

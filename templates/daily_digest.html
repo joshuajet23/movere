@@ -125,6 +125,11 @@
     {% if screen and not screen.error %}
     <div class="section">
       <h2>Screen Time <span class="tag tag-screen">Goal: reduce</span></h2>
+      {% if screen.phone_source == "unavailable" %}
+      <p style="font-size:13px; color:#aaa; margin:6px 0 10px;">
+        📱 Phone data not yet available — set up the iOS Shortcut to enable tracking.
+      </p>
+      {% else %}
       {% set pct = [((screen.phone_minutes / screen.goal_minutes) * 100) | int, 100] | min %}
       <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
         <span style="font-size:22px; font-weight:bold;">{{ (screen.phone_minutes / 60) | round(1) }}h <span style="font-size:13px; font-weight:normal; color:#888;">phone</span></span>
@@ -139,7 +144,9 @@
       <div class="progress-bar">
         <div class="progress-fill {% if screen.over_goal %}over{% endif %}" style="width:{{ pct }}%;"></div>
       </div>
+      {% endif %}
       <p style="font-size:12px; color:#bbb; margin:6px 0 10px;">Mac: {{ screen.mac_minutes | int }} min (not tracked toward goal)</p>
+      {% if screen.phone_source != "unavailable" %}
       {% for device_name, data in screen.devices.items() %}
       <p style="font-size:12px; color:#888; margin:14px 0 6px; text-transform:uppercase; letter-spacing:0.08em;">{{ device_name }}</p>
       {% for app in data.top_apps %}
@@ -149,6 +156,7 @@
       </div>
       {% endfor %}
       {% endfor %}
+      {% endif %}
     </div>
     {% endif %}
 

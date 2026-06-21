@@ -47,9 +47,10 @@ def fetch(cfg: dict, cache: bool = True) -> dict:
             raise last_err
 
         date_str = yesterday.isoformat()
+        today_str = date.today().isoformat()
 
         steps_data = client.get_steps_data(date_str)
-        sleep_data = client.get_sleep_data(date_str)
+        sleep_data = client.get_sleep_data(today_str)   # sleep is stored under wake-up date
         stress_data = client.get_stress_data(date_str)
         max_metrics = client.get_max_metrics(date_str)
         race_preds = client.get_race_predictions()
